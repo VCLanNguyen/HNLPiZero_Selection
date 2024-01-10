@@ -1,0 +1,328 @@
+import os
+import sys
+os.nice(20)
+
+import math
+import pandas as pd
+from matplotlib.patches import Rectangle
+
+# Local helper script                             
+hnlDIR = os.environ['_']                          
+sys.path.append(hnlDIR + '/pyscript/')            
+                                                
+from Plotting import *                            
+from Dictionary import *
+
+fontsize = 12
+
+#------------------------------------------------------------------------------------------------------------------#
+def make_interval(lb_val, ub_val):
+
+    lb_arr = []
+    ub_arr = []   
+    
+    #construct the lower/upper bound array
+    for idx in range(0,81):
+        lb_arr.append(lb_val+19*idx)
+        ub_arr.append(ub_val+19*idx)
+    return lb_arr, ub_arr
+
+def checkInterval(x, lb_arr, ub_arr):
+
+    isIn = False
+
+    for lb, ub in zip(lb_arr, ub_arr):
+        if lb <= x <= ub:
+            isIn = True
+            break
+
+    return isIn
+#------------------------------------------------------------------------------------------------------------------#
+def unit_vector(vector):
+    return vector / np.linalg.norm(vector)
+
+def angle_between(v1, v2):
+
+    v1_u = unit_vector(v1)
+    v2_u = unit_vector(v2)
+
+    angle = np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+    angle = math.degrees(angle)
+
+    return angle
+
+def calc_angle2Beam(x, y, z):
+
+    v1 = [0, 0, 1]
+    v2 = [x, y, z]
+    angle = angle_between(v1, v2)
+    
+    return angle
+
+#------------------------------------------------------------------------------------------------------------------#
+def check_dataframe(df):
+    print(df.shape)
+    print(df.columns)
+    print(df.head(20))
+    print("--------------------------------")
+
+#------------------------------------------------------------------------------------------------------------------#
+def hdf5_to_dataframe(path):
+
+    dfslc = pd.read_hdf(path, key='slc')
+    dfsubrun = pd.read_hdf(path, key='subrun')
+    dfmevprtl = pd.read_hdf(path, key='mevprtl')
+    dfmct = pd.read_hdf(path, key='mct')
+    
+    return dfslc, dfsubrun, dfmevprtl, dfmct
+
+#------------------------------------------------------------------------------------------------------------------#
+def calc_scaling_pot(df, dfslc):
+    target_pot = 1*10**21
+    pot_per_spill = 5e12
+
+    sample_pot = df['pot'].sum()
+    sample_spill = df['ngenevts'].sum()
+    
+    scale_pot = target_pot / sample_pot
+    target_spill = target_pot * sample_spill / sample_pot
+    
+    dfslc['scale_pot'] = scale_pot
+
+    print('-----------------------------------------------')
+    print('sample pot = ' + str(sample_pot))
+    print('sample spill = ' + str(sample_spill))
+    print('target spill = ' + str(target_spill))
+    print('scale pot factor = ' + str(scale_pot))
+    print('-----------------------------------------------')
+
+    return scale_pot, target_spill
+
+#------------------------------------------------------------------------------------------------------------------#
+def calc_scaling_spill(df, dfslc, hnl_spill, nu_spill):
+
+    target_pot = 1*10**21
+    pot_per_spill = 5e12
+
+    target_spill = target_pot / pot_per_spill 
+    target_intime_spill = target_spill - hnl_spill - nu_spill
+
+    sample_spill = df['ngenevts'].sum()
+
+    scale_pot = target_intime_spill / sample_spill
+    
+    dfslc['scale_pot'] = scale_pot
+
+    print('-----------------------------------------------')
+    print('target total spill = ' + str(target_spill))
+    print('hnl + nu spill = ' + str(hnl_spill + nu_spill))
+    print('target intime spill = ' + str(target_intime_spill))
+    print('scale pot factor = ' + str(scale_pot))
+    print('-----------------------------------------------')
+
+    return scale_pot 
+
+#------------------------------------------------------------------------------------------------------------------#
+def get_true_signal_in_all_spills(df, scale_pot):
+    
+    nSig = len(df['nu_event_type'][df['nu_event_type']==0]) * scale_pot
+    nNonFV = len(df['nu_event_type'][df['nu_event_type']==1]) * scale_pot
+    
+    return nSig, nNonFV
+
+#------------------------------------------------------------------------------------------------------------------#
+def get_reco_signal_in_all_spills(df, scale_pot):
+    
+    #dataframe are at pfp level --> need to count slice
+    df = df.drop_duplicates(subset=["run","subrun","event", "slc_idx"])
+    
+    #keep only relevant columns
+    df = df[['run', 'subrun', 'event', 'slc_idx', 'slc_comp', 'slc_true_event_type']]
+    
+    #count
+    nSig = len(df['slc_true_event_type'][ (df['slc_true_event_type']==0) & (df['slc_comp'] > 0.5)]) * scale_pot
+    nNonFV = len(df['slc_true_event_type'][ (df['slc_true_event_type']==1) & (df['slc_comp'] > 0.5)]) * scale_pot
+
+    return nSig, nNonFV
+
+#------------------------------------------------------------------------------------------------------------------#
+def get_slice(df, scale_pot, ifSignal):
+   
+    #dataframe are at pfp level --> need to count slice
+    df = df.drop_duplicates(subset=["run","subrun","event", "slc_idx"])
+    
+    #keep only relevant columns
+    df = df[['run', 'subrun', 'event', 'slc_idx', 'slc_comp']]
+   
+    if ifSignal:
+        return len(df[df['slc_comp'] > 0.5]) * scale_pot
+    else:
+        return len(df['slc_comp']) * scale_pot
+
+#------------------------------------------------------------------------------------------------------------------#
+def split_into_event_type(df, var_name, ifScale):
+    
+    pltdf, potdf = [], []
+    
+    if ifScale:
+        df['scale_pot'] = df['scale_pot'] * 1
+    
+    for t in event_type:
+
+        #event type condition
+        when = df['slc_true_event_type'] == t
+        
+        #plot variable - can be pfp, do not use for counting
+        dt = df[var_name][when]
+        pltdf.append(dt)
+    
+        #pot varible - make it the same shape as plotting variable
+        dp = df['scale_pot'][when]
+        potdf.append(dp)
+        
+    return pltdf, potdf
+
+#------------------------------------------------------------------------------------------------------------------#
+def count_slice(dfhnl, dfnu, dfcosmics, true_counts, start_counts):
+
+    scale_pot_hnl = dfhnl['scale_pot'].unique()
+    scale_pot_nu = dfnu['scale_pot'].unique()
+    scale_pot_cosmics = dfcosmics['scale_pot'].unique()
+
+    scale_pot_hnl = scale_pot_hnl[0]  
+
+    if len(scale_pot_nu) == 0:
+        scale_pot_nu = 0
+    else:
+        scale_pot_nu = scale_pot_nu[0]
+
+    if len(scale_pot_cosmics) == 0:
+        scale_pot_cosmics = 0
+    else:
+        scale_pot_cosmics = scale_pot_cosmics[0]
+
+    slc_count_hnl, slc_count_nu, slc_count_cosmics = [], [], []
+    n_hnl, n_nu, n_cosmics = 0, 0, 0
+
+    for t in event_type:
+        
+        #event type condition
+        whenhnl = dfhnl['slc_true_event_type'] == t
+        whennu = dfnu['slc_true_event_type'] == t
+        whencosmics = dfcosmics['slc_true_event_type'] == t
+        
+        if t == 0:
+            n_hnl = get_slice(dfhnl[whenhnl], scale_pot_hnl, True)
+        else:
+            n_hnl = get_slice(dfhnl[whenhnl], scale_pot_hnl, False)
+            n_nu = get_slice(dfnu[whennu], scale_pot_nu, False)
+            n_cosmics = get_slice(dfcosmics[whencosmics], scale_pot_cosmics, False)
+
+        slc_count_hnl.append(n_hnl)
+        slc_count_nu.append(n_nu)
+        slc_count_cosmics.append(n_cosmics)
+
+    slc_count = [i + j + k for (i,j,k) in zip(slc_count_hnl, slc_count_nu, slc_count_cosmics)]
+
+    purity = slc_count_hnl[0] / sum(slc_count) * 100
+    eff = slc_count_hnl[0] / true_counts * 100
+    select_eff = slc_count_hnl[0] / start_counts * 100
+
+    update_label = [i + " (" + '{:,}'.format(round(j)) + ")" for (i,j) in zip(event_label, slc_count)]
+
+    print('purity = {0:.3g}'.format(purity))
+    print('eff = {0:.3g}'.format(eff))
+    print('select eff = {0:.3g}'.format(select_eff))
+
+    return update_label, purity, eff, select_eff
+
+#------------------------------------------------------------------------------------------------------------------#
+def plot_slc_var(dfhnl, dfnu, dfcosmics,
+                true_counts, start_counts, 
+                var_name, 
+                plot_tag,
+                xmin, xmax, xnbin,
+                xtitle,
+                ytitle =  "Slices (1x10$^{21}$ POT)",
+                ifPlotTime = False
+                ):
+
+    print("---------------------------")
+    print('cut name = ' + str(plot_tag))
+    print('plot var = ' + var_name)
+
+    #keep only relevant columns
+    dfhnl = dfhnl[['run', 'subrun', 'event', 'slc_idx', 'slc_comp', 'slc_true_event_type', 'scale_pot', var_name]]
+    dfnu = dfnu[['run', 'subrun', 'event', 'slc_idx', 'slc_comp', 'slc_true_event_type', 'scale_pot', var_name]]
+    dfcosmics = dfcosmics[['run', 'subrun', 'event', 'slc_idx', 'slc_comp', 'slc_true_event_type', 'scale_pot', var_name]]
+
+    #count slices and add to labels
+    update_label, purity, eff, select_eff = count_slice(dfhnl, dfnu, dfcosmics, true_counts, start_counts)
+   
+    # split the df into event type for plotting
+    pltdf_hnl, potdf_hnl = split_into_event_type(dfhnl, var_name, True) 
+    pltdf_nu, potdf_nu = split_into_event_type(dfnu, var_name, False)
+    pltdf_cosmics, potdf_cosmics = split_into_event_type(dfcosmics, var_name, False)
+
+    #bin hnl/nu separately for different pot scaling
+    hist_hnl, bins_hnl, _ = plt.hist(pltdf_hnl, bins = xnbin, range =(xmin, xmax), weights = potdf_hnl)
+    hist_nu, _, _ = plt.hist(pltdf_nu, bins = xnbin, range =(xmin, xmax), weights = potdf_nu)
+    hist_cosmics, bins_cosmics, _ = plt.hist(pltdf_cosmics, bins = xnbin, range =(xmin, xmax), weights = potdf_cosmics)
+
+    #add them back together again
+    hist = np.add(hist_hnl, hist_nu)
+    hist = np.add(hist, hist_cosmics)
+
+    #fake bottom for stacking histogram
+    bottom = np.zeros(xnbin)
+
+    fig, ax = plt.subplots(1, 1, figsize = (6, 4))
+
+    #Plot Time Bucket----------------------------------------------------#
+    if ifPlotTime:
+        fig, ax = plt.subplots(1, 1, figsize = (12, 4))
+        
+        lb_arr, ub_arr = make_interval(375, 380)
+        #lb_arr, ub_arr = make_interval(377, 380)
+        
+        for i in range(74, 81):
+            ax.axvline(lb_arr[i], color = 'indigo', alpha = 0.5, lw = 1, linestyle = 'dotted')
+            ax.axvline(ub_arr[i], color = 'indigo', alpha = 0.5, lw = 1, linestyle = 'dotted')
+            ax.axvspan(lb_arr[i], ub_arr[i], alpha=0.2, color='indigo')
+    #----------------------------------------------------#
+
+    for i in reversed(range(0, len(event_type))):
+        plot_bar(
+                 bins_cosmics[:-1], hist[i],
+                 ax,
+                 width=np.diff(bins_hnl),
+                 xlimmin = xmin, xlimmax = xmax,
+                 bottom = bottom,
+                 label = update_label[i],
+                 color = event_col[i],
+                 xtitle = xtitle,
+                 ytitle = ytitle,
+                 fontsize = fontsize
+                 )
+        bottom += hist[i]
+
+    ax.yaxis.set_major_locator(MaxNLocator(5, prune='lower'))
+    
+    handles, labels = plt.gca().get_legend_handles_labels()
+    handles = handles[::-1]
+    labels = labels[::-1]
+
+    labels.append("Purity = {0:.3g}%".format(purity))
+    labels.append("Eff = {0:.3g}%".format(eff))
+    labels.append("Select Eff = {0:.3g}%".format(select_eff))
+
+    extra = Rectangle((0, 0), 1, 1, fc="w", fill=False, edgecolor='none', linewidth=0)
+    handles.append(extra)
+    handles.append(extra)
+    handles.append(extra)
+
+    ax.legend(handles, labels, bbox_to_anchor=(0.65, 0.23), fontsize=fontsize - 4, fancybox=False, ncol = 1)
+    ax.legend(handles, labels, loc='best', fontsize=fontsize - 4, fancybox=False, ncol = 1)
+
+    fig.tight_layout()
+    plt.savefig("./plot_files/" + var_name + plot_tag + ".png", dpi = 200)
