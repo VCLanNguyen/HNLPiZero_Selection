@@ -30,7 +30,7 @@ def load_tree(path, tname, branches):
 
     return df
 
-def load_df(input_file, output_file, ifSlc = True, ifSubrun = True, ifMeVPrtl = False, ifMct = False ):
+def load_df(input_file, output_file, ftype):
         
     #SLICE AND PFP NEED SPECIAL HANDLING
     dfslc = load_tree(input_file, "events", slc_branches)
@@ -51,6 +51,10 @@ def load_df(input_file, output_file, ifSlc = True, ifSubrun = True, ifMeVPrtl = 
    
     #merge pfp and slc dataframe on slice idx
     dfjoin = pd.concat([dfslc, dfpfp], axis = 1)
+
+    del dfpfp
+    del dfslc
+
     dfjoin = dfjoin.loc[:, ~dfjoin.columns.duplicated()]
     #explode to pfp level
     dfjoin = dfjoin.apply(pd.Series.explode) #explode to pfp level
@@ -59,56 +63,68 @@ def load_df(input_file, output_file, ifSlc = True, ifSubrun = True, ifMeVPrtl = 
     #dfjoin = dfjoin.set_index(['run', 'subrun', 'event', 'slc_idx']).sort_index().reset_index()
     #dfjoin = dfjoin.set_index(['run', 'subrun', 'event', 'slc_idx']).sort_index()
 
-    #Pre-selection cut
-    #dfjoin = cutPreSelection(dfjoin)
-
-    #CRUMBS cut
-    #dfjoin = cutCosmics(dfjoin)
-    
     #fix unit
     dfjoin["slc_opt0_time_corrected_Z_pandora"] = dfjoin["slc_opt0_time_corrected_Z_pandora"] * 1000
-    dfjoin.to_hdf(output_file, key='slc', mode = 'w')
     
     dfsubrun = load_tree(input_file, "subruns", subrun_branches)
     dfsubrun = dfsubrun.set_index(['run','subrun']).sort_index().reset_index()
-    dfsubrun.to_hdf(output_file, key='subrun')
     
     dfmevprtl = load_tree(input_file, "events", mevprtl_branches)
     dfmevprtl = dfmevprtl.set_index(['run','subrun', 'event']).sort_index().reset_index()
-    dfmevprtl.to_hdf(output_file, key='mevprtl')
     
     dfmct = load_tree(input_file, "events", mct_branches)
     dfmct = dfmct.set_index(['run','subrun', 'event']).sort_index().reset_index()
+
+
+    if ftype == "hnl":
+
+        scale_pot_hnl, hnl_spill = calc_scaling_pot(dfsubrun, dfjoin)
+
+        true_counts, true_nonfv_counts = get_true_signal_in_all_spills(dfmct, scale_pot_hnl)
+        start_counts, start_nonfv_counts = get_reco_signal_in_all_spills(dfjoin, scale_pot_hnl)
+        
+        #true reco
+        print("true signals = " + str(true_counts))
+        print("true nonfv signals = " + str(true_nonfv_counts))
+        print("total true signals = " +str(true_counts +true_nonfv_counts))
+        
+        #start reco signals
+        print("start signals = " + str(start_counts))
+        print("start nonfv signals = " + str(start_nonfv_counts))
+        print("total start signals = " +str(start_counts + start_nonfv_counts))
+
+    elif ftype == "nu":
+
+        dfjoin['slc_true_event_type'][dfjoin['slc_true_event_type'] == 0] = -1
+
+    elif ftype == "cos":
+
+        dfjoin['slc_true_event_type'][dfjoin['slc_true_event_type'] == -1] = 9
+
+    #dfjoin = PreCut(dfjoin)
+    dfjoin = cutClearCosmics(dfjoin)
+
+    dfjoin.to_hdf(output_file, key='slc', mode = 'w')
+    dfsubrun.to_hdf(output_file, key='subrun')
     dfmct.to_hdf(output_file, key='mct')
+    dfmevprtl.to_hdf(output_file, key='mevprtl')
 
-def main():
+def main(args):
 
-    hnl_input_file = "./root_files/hnl_m200_20k.root"
-    hnl_output_file = "./hdf5_files/hnl_bdt_test_20k.h5"
-
-    nu_input_file = "./root_files/tpc_nu_20k.root"
-    nu_output_file = "./hdf5_files/nu_bdt_test_20k.h5"
-    
-    cosmics_input_file = "./root_files/cosmics_5k.root"
-    cosmics_output_file = "./hdf5_files/cosmics_test_5k.h5"
-    
     start = time.time()
 
-    load_df(hnl_input_file, hnl_output_file, ifSlc = True, ifSubrun = True, ifMeVPrtl = False, ifMct = False)
+    load_df(args.input, args.output, args.type)
     
-    now1 = time.time()
-    print("Done saving hnl, elapsed time = " + str(now1 -start))
-    
-    load_df(nu_input_file, nu_output_file, ifSlc = True, ifSubrun = True, ifMeVPrtl = False, ifMct = False)
-    
-    now2 = time.time()
-    print("Done saving nu, elapsed time = " + str(now2 - now1))
-    
-    #load_df(cosmics_input_file, cosmics_output_file, ifSlc = True, ifSubrun = True, ifMeVPrtl = False, ifMct = False)
+    now = time.time()
 
-    #now3 = time.time()
-    #print("Done saving cosmics, elapsed time = " + str(now3 - now2))
+    print("Done converting root to dataframe, elapsed time = " + str(now -start))
 
 if __name__ == '__main__':
 
-	main()
+    parser = argparse.ArgumentParser()      
+    parser.add_argument("--input", required=True, help="Input root file e.g. hnl.root")
+    parser.add_argument("--output", required=True, help="Output hdf5 file e.g. hnl.h5")
+    parser.add_argument("--type", required=True, help="hnl or nu or cos?")
+
+    args = parser.parse_args()                             
+    main(args)                                             

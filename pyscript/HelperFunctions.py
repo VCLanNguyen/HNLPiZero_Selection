@@ -16,6 +16,9 @@ from Dictionary import *
 fontsize = 12
 
 #------------------------------------------------------------------------------------------------------------------#
+def getUfromScaleFactor(inputU, scaleFactor):
+    return np.sqrt(scaleFactor)*inputU
+#------------------------------------------------------------------------------------------------------------------#
 def make_interval(lb_val, ub_val):
 
     lb_arr = []
@@ -77,7 +80,7 @@ def hdf5_to_dataframe(path):
     return dfslc, dfsubrun, dfmevprtl, dfmct
 
 #------------------------------------------------------------------------------------------------------------------#
-def calc_scaling_pot(df, dfslc):
+def calc_scaling_pot(df, dfslc, ifScale = 1):
     target_pot = 1*10**21
     pot_per_spill = 5e12
 
@@ -87,8 +90,11 @@ def calc_scaling_pot(df, dfslc):
     scale_pot = target_pot / sample_pot
     target_spill = target_pot * sample_spill / sample_pot
     
-    dfslc['scale_pot'] = scale_pot
+    if ifScale > 1:
+        scale_pot = scale_pot * ifScale
 
+    dfslc['scale_pot'] = scale_pot
+    
     print('-----------------------------------------------')
     print('sample pot = ' + str(sample_pot))
     print('sample spill = ' + str(sample_spill))
@@ -160,12 +166,12 @@ def get_slice(df, scale_pot, ifSignal):
         return len(df['slc_comp']) * scale_pot
 
 #------------------------------------------------------------------------------------------------------------------#
-def split_into_event_type(df, var_name, ifScale):
+def split_into_event_type(df, var_name, ifScale, Scale_hnl):
     
     pltdf, potdf = [], []
     
     if ifScale:
-        df['scale_pot'] = df['scale_pot'] * 1
+        df['scale_pot'] = df['scale_pot'] * Scale_hnl
     
     for t in event_type:
 
@@ -211,7 +217,7 @@ def count_slice(dfhnl, dfnu, dfcosmics, true_counts, start_counts):
         whennu = dfnu['slc_true_event_type'] == t
         whencosmics = dfcosmics['slc_true_event_type'] == t
         
-        if t == 0:
+        if t == 0 or t == 1:
             n_hnl = get_slice(dfhnl[whenhnl], scale_pot_hnl, True)
         else:
             n_hnl = get_slice(dfhnl[whenhnl], scale_pot_hnl, False)
@@ -224,12 +230,19 @@ def count_slice(dfhnl, dfnu, dfcosmics, true_counts, start_counts):
 
     slc_count = [i + j + k for (i,j,k) in zip(slc_count_hnl, slc_count_nu, slc_count_cosmics)]
 
-    purity = slc_count_hnl[0] / sum(slc_count) * 100
-    eff = slc_count_hnl[0] / true_counts * 100
-    select_eff = slc_count_hnl[0] / start_counts * 100
+    total_hnl = slc_count_hnl[0] + slc_count_hnl[1]
+    
+    purity = total_hnl / sum(slc_count) * 100
+    
+    eff = total_hnl / true_counts * 100
+    
+    select_eff = total_hnl / start_counts * 100
 
+    total_bkg = sum(slc_count) - total_hnl
+    
     update_label = [i + " (" + '{:,}'.format(round(j)) + ")" for (i,j) in zip(event_label, slc_count)]
 
+    print('nSig = {0:.6g}, nBkg = {1:.6g}, nSlc = {2:.6g}'.format(total_hnl, total_bkg, sum(slc_count)))
     print('purity = {0:.3g}'.format(purity))
     print('eff = {0:.3g}'.format(eff))
     print('select eff = {0:.3g}'.format(select_eff))
@@ -240,16 +253,13 @@ def count_slice(dfhnl, dfnu, dfcosmics, true_counts, start_counts):
 def plot_slc_var(dfhnl, dfnu, dfcosmics,
                 true_counts, start_counts, 
                 var_name, 
-                plot_tag,
+                Scale_hnl,
                 xmin, xmax, xnbin,
                 xtitle,
                 ytitle =  "Slices (1x10$^{21}$ POT)",
-                ifPlotTime = False
+                ifPlotTime = False,
+                
                 ):
-
-    print("---------------------------")
-    print('cut name = ' + str(plot_tag))
-    print('plot var = ' + var_name)
 
     #keep only relevant columns
     dfhnl = dfhnl[['run', 'subrun', 'event', 'slc_idx', 'slc_comp', 'slc_true_event_type', 'scale_pot', var_name]]
@@ -260,19 +270,23 @@ def plot_slc_var(dfhnl, dfnu, dfcosmics,
     update_label, purity, eff, select_eff = count_slice(dfhnl, dfnu, dfcosmics, true_counts, start_counts)
    
     # split the df into event type for plotting
-    pltdf_hnl, potdf_hnl = split_into_event_type(dfhnl, var_name, True) 
-    pltdf_nu, potdf_nu = split_into_event_type(dfnu, var_name, False)
-    pltdf_cosmics, potdf_cosmics = split_into_event_type(dfcosmics, var_name, False)
+    pltdf_hnl, potdf_hnl = split_into_event_type(dfhnl, var_name, False, 1) 
+    pltdf_nu, potdf_nu = split_into_event_type(dfnu, var_name, False, 1)
+    pltdf_cosmics, potdf_cosmics = split_into_event_type(dfcosmics, var_name, False, 1)
 
     #bin hnl/nu separately for different pot scaling
     hist_hnl, bins_hnl, _ = plt.hist(pltdf_hnl, bins = xnbin, range =(xmin, xmax), weights = potdf_hnl)
     hist_nu, _, _ = plt.hist(pltdf_nu, bins = xnbin, range =(xmin, xmax), weights = potdf_nu)
-    hist_cosmics, bins_cosmics, _ = plt.hist(pltdf_cosmics, bins = xnbin, range =(xmin, xmax), weights = potdf_cosmics)
+    hist_cosmics, _, _ = plt.hist(pltdf_cosmics, bins = xnbin, range =(xmin, xmax), weights = potdf_cosmics)
 
+    plt.clf()
+    
     #add them back together again
     hist = np.add(hist_hnl, hist_nu)
     hist = np.add(hist, hist_cosmics)
 
+    del hist_hnl, hist_nu, hist_cosmics
+    
     #fake bottom for stacking histogram
     bottom = np.zeros(xnbin)
 
@@ -293,7 +307,7 @@ def plot_slc_var(dfhnl, dfnu, dfcosmics,
 
     for i in reversed(range(0, len(event_type))):
         plot_bar(
-                 bins_cosmics[:-1], hist[i],
+                 bins_hnl[:-1], hist[i],
                  ax,
                  width=np.diff(bins_hnl),
                  xlimmin = xmin, xlimmax = xmax,
@@ -324,5 +338,9 @@ def plot_slc_var(dfhnl, dfnu, dfcosmics,
     ax.legend(handles, labels, bbox_to_anchor=(0.65, 0.23), fontsize=fontsize - 4, fancybox=False, ncol = 1)
     ax.legend(handles, labels, loc='best', fontsize=fontsize - 4, fancybox=False, ncol = 1)
 
+    #ax.set_yscale('log')
+
     fig.tight_layout()
-    plt.savefig("./plot_files/" + var_name + plot_tag + ".png", dpi = 200)
+    
+    #plt.savefig("./plot_files/" + var_name + plot_tag + ".png", dpi = 200)
+    return hist, bins_hnl

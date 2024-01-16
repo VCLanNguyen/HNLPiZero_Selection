@@ -59,7 +59,7 @@ def main(args):
     #----------------------------------------------------------------#
     #for efficiency calculation
     #true_counts, true_nonfv_counts = get_true_signal_in_all_spills(dfmct_hnl , scale_pot_hnl)
-    #istart_counts, start_nonfv_counts = get_reco_signal_in_all_spills(dfslc_hnl, scale_pot_hnl)
+    #start_counts, start_nonfv_counts = get_reco_signal_in_all_spills(dfslc_hnl, scale_pot_hnl)
    
     true_counts = 1019.6841605507992
     true_nonfv_counts = 434.88713106460574

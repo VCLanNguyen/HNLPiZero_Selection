@@ -34,7 +34,7 @@ event_col_dict = {
             }
 
 event_label_dict = {                
-                0:  "Signal HNL ${\pi}^{0}$"       
+                0:  "FV HNL ${\pi}^{0}$"       
                 , 1:  "Non-FV HNL ${\pi}^{0}$"        
                 , 2:  "Dirt HNL"         
                 , 3:  "NC ${\pi}^{0}$"        
