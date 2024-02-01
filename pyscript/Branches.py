@@ -30,6 +30,27 @@ subrun_branches = [
                     , "spills"
                     , "ngenevts"
                 ]
+
+#fluxsys
+fluxw_branches = [
+                "run",
+                "subrun",
+                "event",
+                "slc_flux_weight_expskin", 
+                "slc_flux_weight_horncurrent", 
+                "slc_flux_weight_kminus",
+                "slc_flux_weight_kplus", 
+                "slc_flux_weight_kzero", 
+                "slc_flux_weight_nucleoninexsec",
+                "slc_flux_weight_nucleonqexsec", 
+                "slc_flux_weight_nucleontotxsec", 
+                "slc_flux_weight_piminus",
+                "slc_flux_weight_pioninexsex", 
+                "slc_flux_weight_pionqexsec", 
+                "slc_flux_weight_piontotxsec",
+                "slc_flux_weight_piplus"        
+                ]
+
 #slice
 slc_branches = [
                 "run"

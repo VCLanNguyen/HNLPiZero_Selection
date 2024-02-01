@@ -54,6 +54,8 @@ def cutClearCosmics(df
         when_NotCosmics = df['slc_is_clear_cosmics'] == 0
         df = df[when_NotCosmics]
 
+    df = df.drop(columns=['slc_is_clear_cosmics'])
+    
     return df
     
 #------------------------------------------------------------------------------------------------------------------#
