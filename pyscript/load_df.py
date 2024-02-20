@@ -158,7 +158,7 @@ def main(args):
         dfmct_cc = pd.concat([dfmct_cc, dfmct], ignore_index = True) 
         dfflxw_cc = pd.concat([dfflxw_cc, dfflxw], ignore_index = True) 
 
-        if ((i != 0) and (i%500 == 0)) or ((i != 0) and (i%nlines == 0)) :
+        if ((i != 0) and (i%400 == 0)) or ((i != 0) and (i%nlines == 0)) :
     
             print ("Saving iteration " + str(itr) + ", file counter " + str(i))
             

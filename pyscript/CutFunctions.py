@@ -72,7 +72,42 @@ def cutFV(df
     return df
     
 #------------------------------------------------------------------------------------------------------------------#
-def cutTrackScore(df
+def cutTrackScoreMore(df
+                  , shwScore = 0.6
+                  , ifShower = True
+                  ):
+
+    #3. Has at least 1 pfp with trackScore < threshold
+    if ifShower:
+
+        conditions = [
+                (df['slc_pfp_track_score'] >= shwScore)
+                , (df['slc_pfp_track_score'] < shwScore)
+                ]
+
+        values = [1, 0]
+
+        # create a new column and use np.select to assign values to it using our lists as arguments
+        df['showerLike'] = np.select(conditions, values)
+
+        # creates a new dataframe that contains the column "tpc_sum"
+        dfShower = df.groupby(["run","subrun","event","slc_idx"]).agg(shower_sum = ('showerLike','sum')).reset_index()
+
+        # select slices that have only 
+        dfShower = dfShower.query("shower_sum > 0") 
+        
+        # keep only the columns relevant for your index
+        dfShower_idx = dfShower[["run","subrun","event","slc_idx"]]
+
+        # merge this index with your original dataframe
+        df = df.merge(dfShower_idx, on = ['run','subrun', 'event','slc_idx'])
+        
+        #drop useless columns
+        df = df.drop(columns=['showerLike'])
+
+    return df
+#------------------------------------------------------------------------------------------------------------------#
+def cutTrackScoreLess(df
                   , shwScore = 0.6
                   , ifShower = True
                   ):
@@ -106,7 +141,6 @@ def cutTrackScore(df
         df = df.drop(columns=['showerLike'])
 
     return df
-    
 #------------------------------------------------------------------------------------------------------------------#
 def cutCosmics(df
                 , crumbsScore = 0.00
@@ -298,14 +332,94 @@ def cutPion(df
         df = df.drop(columns=['hasPion'])
     return df
 #------------------------------------------------------------------------------------------------------------------#
-def cutPhoton(df
+def cutElectronLess(df
+            , nElectron = 2
+            , electronScore = 0.14
+            , ifnElectron = True
+            , ifScore = True
+            ): 
+    #1. nRazzled Electron w/ threshold cut < 2
+    #2. Contains no pfp with Razzled Electron Score > val
+    
+    if nElectron:
+        when_nElectron = df['slc_n_razzled_electrons'] <= nElectron
+        df = df[when_nElectron]
+    
+    if ifScore:
+
+        conditions = [
+                (df['slc_pfp_razzled_electron_score'] >= electronScore)
+                , (df['slc_pfp_razzled_electron_score'] < electronScore)
+                ]
+
+        values = [1, 0]
+
+        # create a new column and use np.select to assign values to it using our lists as arguments
+        df['hasElectron'] = np.select(conditions, values)
+
+        # creates a new dataframe that contains the column "tpc_sum"
+        dfElectron = df.groupby(["run","subrun","event","slc_idx"]).agg(electron_sum = ('hasElectron','sum')).reset_index()
+
+        # select slices that have only 
+        df_noElectron = dfElectron.query("electron_sum == 0") 
+        
+        # keep only the columns relevant for your index
+        df_noElectron_idx = df_noElectron[["run","subrun","event","slc_idx"]]
+
+        # merge this index with your original dataframe
+        df = df.merge(df_noElectron_idx, on = ['run','subrun', 'event','slc_idx'])
+
+        df = df.drop(columns=['hasElectron'])
+    return df
+#------------------------------------------------------------------------------------------------------------------#
+def cutElectronMore(df
+            , nElectron = 2
+            , electronScore = 0.14
+            , ifnElectron = True
+            , ifScore = True
+            ): 
+    #1. nRazzled Electron w/ threshold cut < 2
+    #2. Contains no pfp with Razzled Electron Score > val
+    
+    if nElectron:
+        when_nElectron = df['slc_n_razzled_electrons'] <= nElectron
+        df = df[when_nElectron]
+    
+    if ifScore:
+
+        conditions = [
+                (df['slc_pfp_razzled_electron_score'] <= electronScore)
+                , (df['slc_pfp_razzled_electron_score'] > electronScore)
+                ]
+
+        values = [1, 0]
+
+        # create a new column and use np.select to assign values to it using our lists as arguments
+        df['hasElectron'] = np.select(conditions, values)
+
+        # creates a new dataframe that contains the column "tpc_sum"
+        dfElectron = df.groupby(["run","subrun","event","slc_idx"]).agg(electron_sum = ('hasElectron','sum')).reset_index()
+
+        # select slices that have only 
+        df_noElectron = dfElectron.query("electron_sum == 0") 
+        
+        # keep only the columns relevant for your index
+        df_noElectron_idx = df_noElectron[["run","subrun","event","slc_idx"]]
+
+        # merge this index with your original dataframe
+        df = df.merge(df_noElectron_idx, on = ['run','subrun', 'event','slc_idx'])
+
+        df = df.drop(columns=['hasElectron'])
+    return df
+#------------------------------------------------------------------------------------------------------------------#
+def cutPhotonLess(df
             , nPhoton = 2
             , photonScore = 0.14
             , ifnPhoton = True
             , ifScore = True
             ): 
-    #1. nRazzled Pion w/ threshold cut < 2
-    #2. Contains no pfp with Razzled Pion Score > val
+    #1. nRazzled Photon w/ threshold cut < 2
+    #2. Contains no pfp with Razzled Photon Score > val
     
     if nPhoton:
         when_nPhoton = df['slc_n_razzled_photons'] <= nPhoton
@@ -315,27 +429,67 @@ def cutPhoton(df
 
         conditions = [
                 (df['slc_pfp_razzled_photon_score'] >= photonScore)
-                , (df['slc_pfp_razzled_photon_score'] < photoncore)
+                , (df['slc_pfp_razzled_photon_score'] < photonScore)
                 ]
 
         values = [1, 0]
 
         # create a new column and use np.select to assign values to it using our lists as arguments
-        df['hasPion'] = np.select(conditions, values)
+        df['hasPhoton'] = np.select(conditions, values)
 
         # creates a new dataframe that contains the column "tpc_sum"
-        dfPion = df.groupby(["run","subrun","event","slc_idx"]).agg(pion_sum = ('hasPion','sum')).reset_index()
+        dfPhoton = df.groupby(["run","subrun","event","slc_idx"]).agg(photon_sum = ('hasPhoton','sum')).reset_index()
 
         # select slices that have only 
-        df_noPion = dfPion.query("pion_sum == 0") 
+        df_noPhoton = dfPhoton.query("photon_sum == 0") 
         
         # keep only the columns relevant for your index
-        df_noPion_idx = df_noPion[["run","subrun","event","slc_idx"]]
+        df_noPhoton_idx = df_noPhoton[["run","subrun","event","slc_idx"]]
 
         # merge this index with your original dataframe
-        df = df.merge(df_noPion_idx, on = ['run','subrun', 'event','slc_idx'])
+        df = df.merge(df_noPhoton_idx, on = ['run','subrun', 'event','slc_idx'])
 
-        df = df.drop(columns=['hasPion'])
+        df = df.drop(columns=['hasPhoton'])
+    return df
+#------------------------------------------------------------------------------------------------------------------#
+def cutPhotonMore(df
+            , nPhoton = 2
+            , photonScore = 0.14
+            , ifnPhoton = True
+            , ifScore = True
+            ): 
+    #1. nRazzled Photon w/ threshold cut < 2
+    #2. Contains no pfp with Razzled Photon Score > val
+    
+    if nPhoton:
+        when_nPhoton = df['slc_n_razzled_photons'] <= nPhoton
+        df = df[when_nPhoton]
+    
+    if ifScore:
+
+        conditions = [
+                (df['slc_pfp_razzled_photon_score'] <= photonScore)
+                , (df['slc_pfp_razzled_photon_score'] > photonScore)
+                ]
+
+        values = [1, 0]
+
+        # create a new column and use np.select to assign values to it using our lists as arguments
+        df['hasPhoton'] = np.select(conditions, values)
+
+        # creates a new dataframe that contains the column "tpc_sum"
+        dfPhoton = df.groupby(["run","subrun","event","slc_idx"]).agg(photon_sum = ('hasPhoton','sum')).reset_index()
+
+        # select slices that have only 
+        df_noPhoton = dfPhoton.query("photon_sum == 0") 
+        
+        # keep only the columns relevant for your index
+        df_noPhoton_idx = df_noPhoton[["run","subrun","event","slc_idx"]]
+
+        # merge this index with your original dataframe
+        df = df.merge(df_noPhoton_idx, on = ['run','subrun', 'event','slc_idx'])
+
+        df = df.drop(columns=['hasPhoton'])
     return df
 #------------------------------------------------------------------------------------------------------------------#
 def cutThetaAngle(df
@@ -386,16 +540,40 @@ def cutBetweenBucket(df
         df = df.drop(columns=['isBetweenBucket'])
    
     return df
+
 #------------------------------------------------------------------------------------------------------------------#
-def cutOpt0(df
-                , Opt0Score = 500
-                , ifOpt0Valid = True
-                , ifOpt0Frac = True
+def cutBeamGate(df
                 , ifOpt0BeamGate = True
-                , ifOpt0Score = True
+               ): 
+        
+    if ifOpt0BeamGate:
+        when_Opt0Score = df['slc_opt0_time_corrected_Z_pandora'] > 367
+        df = df[when_Opt0Score]
+
+    return df
+#------------------------------------------------------------------------------------------------------------------#
+def cutOpt0Frac(df
+                , Opt0FracMore = 0.3
+                , ifOpt0FracMore = True
+                , Opt0FracLess = 0.3
+                , ifOpt0FracLess = True
                ): 
 
+    if ifOpt0FracMore:
+        when_Opt0Frac = df['slc_opt0_frac'] > Opt0FracMore
+        df = df[when_Opt0Frac]
+        
+    if ifOpt0FracLess:
+        when_Opt0Frac = df['slc_opt0_frac'] < Opt0FracLess
+        df = df[when_Opt0Frac]
 
+    return df
+#------------------------------------------------------------------------------------------------------------------#
+def cutOpt0Score(df
+                , Opt0Score = 500
+                , ifOpt0Valid = True
+                , ifOpt0Score = True
+               ): 
     
     if ifOpt0Valid:
         when_Opt0Valid = df['slc_opt0_score'] > 0 
@@ -404,25 +582,5 @@ def cutOpt0(df
     if ifOpt0Score:
         when_Opt0Valid = df['slc_opt0_score'] > Opt0Score 
         df = df[when_Opt0Valid]
-
-    if ifOpt0Frac:
-        when_Opt0Frac = df['slc_opt0_frac'] < 0.5 
-        df = df[when_Opt0Frac]
-        
-    if ifOpt0BeamGate:
-        when_Opt0Score = df['slc_opt0_time_corrected_Z_pandora'] > 367
-        df = df[when_Opt0Score]
-
-    return df
-#------------------------------------------------------------------------------------------------------------------#
-def cutTrackScore(df
-                , TrackScore = 0.06
-                , ifScore = True
-  
-               ): 
-
-    if ifScore:
-        when_Score = df['slc_pfp_track_score'] <= TrackScore
-        df = df[when_Score]
 
     return df

@@ -16,6 +16,67 @@ from Dictionary import *
 fontsize = 12
 
 #------------------------------------------------------------------------------------------------------------------#
+def plot_purity_eff(p_arr, eff_arr, peff_arr, cutStep,  purity_start, eff_start, loc):
+    
+    peffMax = max(peff_arr)
+    bestIndexPE = peff_arr.index(peffMax)
+    bestScorePE = cutStep[bestIndexPE]
+    
+    print("-------------------------------------")
+    print("Best Cut Score PE = {0:3g}".format(bestScorePE))
+    print("Purity = {0:3g}".format(p_arr[bestIndexPE]))
+    print("Eff = {0:3g}".format(eff_arr[bestIndexPE]))
+    print("Purity - Start Purity = {0:3g}".format(p_arr[bestIndexPE] - purity_start))
+    print("Eff - Start Eff = {0:3g}".format(eff_arr[bestIndexPE] - eff_start))
+    
+    pMax = max(p_arr)
+    bestIndexP = p_arr.index(pMax)
+    bestScoreP = cutStep[bestIndexP]
+    
+    print("-------------------------------------")
+    print("Best Cut Score P = {0:3g}".format(bestScoreP))
+    print("Purity = {0:3g}".format(p_arr[bestIndexP]))
+    print("Eff = {0:3g}".format(eff_arr[bestIndexP]))
+    print("Purity - Start Purity = {0:3g}".format(p_arr[bestIndexP] - purity_start))
+    print("Eff - Start Eff = {0:3g}".format(eff_arr[bestIndexP] - eff_start))
+    
+    fig, ax1 = plt.subplots(1, 1, figsize=(6, 4), sharex = True)
+    ax2 = ax1.twinx()
+
+    lns1 = ax1.plot(cutStep, eff_arr, c='g')
+    lns2 = ax2.plot(cutStep, p_arr, c='orange')
+    lns3 = ax1.axvline(x = bestScorePE, color = 'r', label = "Best Purity*Select Eff = {0:4g}".format(bestScorePE))
+    lns4 = ax1.axvline(x = bestScoreP, color = 'purple', label = "Best Purity Cut = {0:4g}".format(bestScoreP))
+
+    #ax1.set_xlabel("Cut Score")
+    ax1.set_xlabel("Cut Score")
+    ax1.set_ylabel("Selection Efficiency [%]", c='g')
+    ax1.set_ylim(-5, 115)
+    ax2.set_ylabel("Purity [%]", c = 'orange')
+    ax2.set_ylim(-5, 115)
+    
+    handles, labels = ax1.get_legend_handles_labels()
+
+    labels.insert(1,"Purity = {0:.3g}%".format(p_arr[bestIndexPE]))
+    labels.insert(2,"Select Eff = {0:.3g}%".format(eff_arr[bestIndexPE]))
+    labels.insert(3,"Eff*Purity = {0:.3g}%".format(p_arr[bestIndexPE]*eff_arr[bestIndexPE]))
+                  
+    labels.insert(5,"Purity = {0:.3g}%".format(p_arr[bestIndexP]))
+    labels.insert(6,"Select Eff = {0:.3g}%".format(eff_arr[bestIndexP]))
+    labels.insert(7,"Eff*Purity = {0:.3g}%".format(p_arr[bestIndexP]*eff_arr[bestIndexP]))
+
+    extra = Rectangle((0, 0), 1, 1, fc="w", fill=False, edgecolor='none', linewidth=0)
+    handles.insert(1, extra)
+    handles.insert(2, extra)
+    handles.insert(3, extra)
+    handles.insert(5, extra)
+    handles.insert(6, extra)
+    handles.insert(7, extra)
+
+    ax1.legend(handles, labels, bbox_to_anchor=(0.65, 0.23), fontsize=fontsize - 4, fancybox=False, ncol = 1)
+    ax1.legend(handles, labels, loc=loc, fontsize=fontsize - 4, fancybox=False, ncol = 1)
+
+#------------------------------------------------------------------------------------------------------------------#
 def getUfromScaleFactor(inputU, scaleFactor):
     return np.sqrt(scaleFactor)*inputU
 #------------------------------------------------------------------------------------------------------------------#
@@ -195,7 +256,10 @@ def count_slice(dfhnl, dfnu, dfcosmics, true_counts, start_counts):
     scale_pot_nu = dfnu['scale_pot'].unique()
     scale_pot_cosmics = dfcosmics['scale_pot'].unique()
 
-    scale_pot_hnl = scale_pot_hnl[0]  
+    if len(scale_pot_hnl) == 0:
+        scale_pot_hnl = 0
+    else:
+        scale_pot_hnl = scale_pot_hnl[0]  
 
     if len(scale_pot_nu) == 0:
         scale_pot_nu = 0
@@ -232,7 +296,10 @@ def count_slice(dfhnl, dfnu, dfcosmics, true_counts, start_counts):
 
     total_hnl = slc_count_hnl[0] + slc_count_hnl[1]
     
-    purity = total_hnl / sum(slc_count) * 100
+    if sum(slc_count) > 0:
+        purity = total_hnl / sum(slc_count) * 100
+    else:
+        purity = 0 
     
     eff = total_hnl / true_counts * 100
     
@@ -242,13 +309,29 @@ def count_slice(dfhnl, dfnu, dfcosmics, true_counts, start_counts):
     
     update_label = [i + " (" + '{:,}'.format(round(j)) + ")" for (i,j) in zip(event_label, slc_count)]
 
-    print('nSig = {0:.6g}, nBkg = {1:.6g}, nSlc = {2:.6g}'.format(total_hnl, total_bkg, sum(slc_count)))
-    print('purity = {0:.3g}'.format(purity))
-    print('eff = {0:.3g}'.format(eff))
-    print('select eff = {0:.3g}'.format(select_eff))
+    #print('nSig = {0:.6g}, nBkg = {1:.6g}, nSlc = {2:.6g}'.format(total_hnl, total_bkg, sum(slc_count)))
+    #print('purity = {0:.3g}'.format(purity))
+    #print('eff = {0:.3g}'.format(eff))
+    #print('select eff = {0:.3g}'.format(select_eff))
 
     return update_label, purity, eff, select_eff
 
+#------------------------------------------------------------------------------------------------------------------#
+def calc_purity_eff(dfhnl, dfnu, dfcosmics,
+                true_counts, start_counts 
+                ):
+
+    #keep only relevant columns
+    dfhnl = dfhnl[['run', 'subrun', 'event', 'slc_idx', 'slc_comp', 'slc_true_event_type', 'scale_pot']]
+    dfnu = dfnu[['run', 'subrun', 'event', 'slc_idx', 'slc_comp', 'slc_true_event_type', 'scale_pot']]
+    dfcosmics = dfcosmics[['run', 'subrun', 'event', 'slc_idx', 'slc_comp', 'slc_true_event_type', 'scale_pot']]
+
+    #count slices and add to labels
+    _, purity, _, select_eff = count_slice(dfhnl, dfnu, dfcosmics, true_counts, start_counts)
+   
+    return purity, select_eff
+
+    
 #------------------------------------------------------------------------------------------------------------------#
 def plot_slc_var(dfhnl, dfnu, dfcosmics,
                 true_counts, start_counts, 
