@@ -357,7 +357,8 @@ def plot_slc_var(dfhnl, dfnu, dfcosmics,
                 ytitle =  "Slices (1x10$^{21}$ POT)",
                 ifPlotTime = False,
                 ifAddLegend = False,
-                addLegend = "test"
+                addLegend = "test", 
+                LegendLoc = "best"
                 ):
 
     #keep only relevant columns
@@ -444,8 +445,7 @@ def plot_slc_var(dfhnl, dfnu, dfcosmics,
         num_float = float(num_str)
         labels[0] = addLegend + '\n ({:,})'.format(round(num_float))
 
-    ax.legend(handles, labels, bbox_to_anchor=(0.65, 0.23), fontsize=fontsize - 4, fancybox=False, ncol = 1)
-    ax.legend(handles, labels, loc='best', fontsize=fontsize - 4, fancybox=False, ncol = 1)
+    ax.legend(handles, labels, loc=LegendLoc, fontsize=fontsize - 4, fancybox=False, ncol = 1)
 
     #ax.set_yscale('log')
 

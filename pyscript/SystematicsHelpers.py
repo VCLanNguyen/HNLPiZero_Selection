@@ -2,7 +2,7 @@ import os
 import sys
 os.nice(20)
 
-import ROOT
+#import ROOT
 import array
 
 # Local helper script                             
