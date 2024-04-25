@@ -2,7 +2,7 @@ import os
 import sys
 os.nice(20)
 
-#import ROOT
+import ROOT
 import array
 
 # Local helper script                             
@@ -75,61 +75,62 @@ flux_list = [
         "slc_flux_weight_piplus"    
 ]
 
-flux_name = ['Exposure Skin Weight'
-                ,'Horn Current Weight'
-                ,'Kaon Minus Weight'
-                ,'Kaon Plus Weight'
-                ,'Neutral Kaon Weight'
-                ,'Nucleon Ineslastic Cross Section Weight'
-                ,'Nucleon Quasi-Elastic Cross Section Weight'
-                ,'Nucleon Total Cross Section Weight'
-                ,'Pion Minus Weight'
-                ,'Pion Inelastic Cross Section Weight'
-                ,'Pion Quasi-Elastic Cross Section Weight'
-                ,'Pion Total Cross Section Weight'
-                ,'Pion Plus Weight'
+flux_name = ['Exposure Skin'
+                ,'Horn Current '
+                ,r'$K^{-}$ Production'
+                ,r'$K^{+}$ Production'
+                ,r'$K^{0}_{L}$ Production'
+                ,'Nucleon Ineslastic Cross Section'
+                ,'Nucleon Quasi-Elastic Cross Section'
+                ,'Nucleon Total Cross Section'
+                ,r'$\pi^{-}$ Production'
+                ,r'$\pi$ Inelastic Cross Section'
+                ,r'$\pi$ Quasi-Elastic Cross Section'
+                ,r'$\pi$ Total Interaction Cross Section'
+                ,r'$\pi^{+}$ Production'
                 ]
 
 #------------------------------------------------------------------------------------------------------------------#
 nu_col = col_dict['Teal']
 hnl_col = col_dict['Flamingo']
 cv_col = col_dict['Coral']
-
+cos_col = col_dict['MintGreen']
 
 total_col = col_dict['Purple']
 
 stats_col = col_dict['Aqua']
-flx_col = col_dict['MintGreen']
+flx_col = col_dict['Spearmint']
 
 xsec_col = col_dict['Peach']
 g4_col = col_dict['RosyBrown4']
 
+mistagging_col = "gray"
 #------------------------------------------------------------------------------------------------------------------#
 xmin = 0
 xmax = 19
 xnbin = 19
 
-hnl_ymin = 0
-hnl_ymax = 2500
+hnl_ymax = 4000
 hnl_ymax2 = 0.2
 
-rockbox_ymin = 0
-rockbox_ymax = 50
-rockbox_ymax2 = 2
+rockbox_ymax = 40
+rockbox_ymax2 = 2.5
 
-ncpi0_ymin = 0
-ncpi0_ymax = 400
-ncpi0_ymax2 = 2
+ncpi0_ymax = 600
+ncpi0_ymax2 = 2.5
 
-nu_ymin = 0
+ccnue_ymax = 200
+ccnue_ymax2 = 2.5
+
 nu_ymax = 3000
 nu_ymax2 = 2
 
-cos_ymin = 0
-cos_ymax = 8
-cos_ymax2 = 2
+cos_ymax = 4
+cos_ymax2 = 4
 
-bins = np.arange(xmin, xmax+(xmax-xmin)/xnbin, (xmax-xmin)/xnbin)
+#bins = np.arange(xmin, xmax+(xmax-xmin)/xnbin, (xmax-xmin)/xnbin)
+bins = [0, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 19]
+bins = np.array(bins)
 bins_mid = np.convolve(bins, [0.5, 0.5], "valid")
 
 #------------------------------------------------------------------------------------------------------------------#
@@ -138,8 +139,8 @@ def fill_nan_plz(which_dict):
         v = np.nan_to_num(v)
         which_dict[k] = v
 #------------------------------------------------------------------------------------------------------------------#
-def new_19_by_19_cov():
-    w, h = 19, 19
+def new_empty_cov():
+    w, h = len(bins) -1, len(bins) -1
     cov = [[0] * w for i in range(h)]
     cov = np.array(cov)
     
@@ -150,16 +151,14 @@ def plot_hatchy_hatch(which_dict, label, which_type, error_type):
     ymin, ymax = 0,0
     #-----------------------------------------------------------------#
     if which_type == 'hnl':
-        ymin = hnl_ymin
         ymax = hnl_ymax
     elif which_type == 'rockbox':
-        ymin = rockbox_ymin
         ymax = rockbox_ymax
     elif which_type == 'ncpi0':
-        ymin = ncpi0_ymin
         ymax = ncpi0_ymax
+    elif which_type == 'ccnue':
+        ymax = ccnue_ymax
     elif which_type == 'cos':
-        ymin = cos_ymin
         ymax = cos_ymax
         
     if error_type == 'stat_err':
@@ -174,6 +173,9 @@ def plot_hatchy_hatch(which_dict, label, which_type, error_type):
     elif error_type == 'g4_err':
         error_label = 'Re-Interaction'
         col = g4_col
+    elif error_type == 'mistagging_err':
+        error_label = 'Mistagging'
+        col = mistagging_col
     #-----------------------------------------------------------------#
     fig, (ax1) = plt.subplots(1,1, figsize = (6,4))
 
@@ -250,14 +252,13 @@ def plot_and_save_universe(df, which_dict, name, good_name, len_univ, xmin, xmax
     ymin, ymax = 0,0
     #-----------------------------------------------------------------#
     if which_type == 'hnl':
-        ymin = hnl_ymin
         ymax = hnl_ymax
     elif which_type == 'rockbox':
-        ymin = rockbox_ymin
         ymax = rockbox_ymax
     elif which_type == 'ncpi0':
-        ymin = ncpi0_ymin
         ymax = ncpi0_ymax
+    elif which_type == 'ccnue':
+        ymax = ccnue_ymax
     #-----------------------------------------------------------------#
     fig, ax = plt.subplots(1,1, figsize = (6,4))
 
@@ -274,7 +275,7 @@ def plot_and_save_universe(df, which_dict, name, good_name, len_univ, xmin, xmax
         
         univ, _, _ = ax.hist(
                             pltdf,
-                            bins = np.arange(xmin, xmax+(xmax-xmin)/xnbin, (xmax-xmin)/xnbin),
+                            bins = bins,
                             weights = weights,
                             density = False,
                             histtype="step",
@@ -349,11 +350,11 @@ def plot_and_save_universe_unisim(df, which_dict, name, good_name, xmin, xmax, x
     ymin, ymax = 0,0
     #-----------------------------------------------------------------#
     if which_type == 'rockbox':
-        ymin = rockbox_ymin
         ymax = rockbox_ymax
     elif which_type == 'ncpi0':
-        ymin = ncpi0_ymin
         ymax = ncpi0_ymax
+    elif which_type == 'ccnue':
+        ymax = ccnue_ymax
     #-----------------------------------------------------------------#
     fig, ax = plt.subplots(1,1, figsize = (6,4))
 
@@ -370,7 +371,7 @@ def plot_and_save_universe_unisim(df, which_dict, name, good_name, xmin, xmax, x
     
     universe, _, _ = ax.hist(
                             pltdf,
-                            bins = np.arange(xmin, xmax+(xmax-xmin)/xnbin, (xmax-xmin)/xnbin),
+                            bins = bins,
                             weights = weights,
                             density = False,
                             histtype="step",
@@ -471,7 +472,7 @@ def loopy_loop_multisigma(weight_list, weight_name, random_arr, df, which_dict, 
 #------------------------------------------------------------------------------------------------------------------#  
 def combine_error(which_dict, error_list):
     
-    which_dict['combined_cov'] = new_19_by_19_cov()
+    which_dict['combined_cov'] = new_empty_cov()
     
     for err in error_list:
         which_dict[err +'_cov_frac'] = which_dict[err +'_cov'] / np.outer(which_dict['cv'], which_dict['cv'])
@@ -489,7 +490,7 @@ def scale_cov_matrix(which_dict, scale_factor, error_list):
     which_dict['cv_scale'] =  which_dict['cv'] * scale_factor
     which_dict['cv_plot_scale'] = which_dict['cv_plot'] * scale_factor
     
-    which_dict['combined_cov_scale'] = new_19_by_19_cov()
+    which_dict['combined_cov_scale'] = new_empty_cov()
     
     for err in error_list:
         which_dict[err+'_cov_scale'] = np.outer(which_dict['cv_scale'], which_dict['cv_scale']) * which_dict[err+'_cov_frac']
@@ -511,21 +512,18 @@ def plot_combine_err(which_dict, which_type, label, error_list, ifScale = False,
     fig, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 2]}, figsize = (6, 6), sharex = True)
 
     #=========================================================================#
-    ymin = 0
+    ymin, ymax = 0, 0
     if which_type == 'hnl':
-        ymin = hnl_ymin
         ymax = hnl_ymax * scaleYmax
     elif which_type == 'rockbox':
-        ymin = rockbox_ymin
         ymax = rockbox_ymax * scaleYmax
     elif which_type == 'ncpi0':
-        ymin = ncpi0_ymin
         ymax = ncpi0_ymax * scaleYmax
     elif which_type == 'nu':
-        ymin = nu_ymin
         ymax = nu_ymax * scaleYmax
+    elif which_type == 'ccnue':
+        ymax = ccnue_ymax * scaleYmax
     elif which_type == 'cos':
-        ymin = cos_ymin
         ymax = cos_ymax * scaleYmax
     
     #=========================================================================#
@@ -595,6 +593,9 @@ def plot_combine_err(which_dict, which_type, label, error_list, ifScale = False,
         elif err == 'g4':
             error_label = 'Re-Interaction'
             col = g4_col
+        elif err == 'mistagging':
+            error_label = 'Mistagging'
+            col = mistagging_col
             
         ax2.step(bins, np.insert(which_dict[err + '_frac_err' + suffix], 0,0) 
          , color = col , linestyle = '-'
@@ -614,6 +615,8 @@ def plot_combine_err(which_dict, which_type, label, error_list, ifScale = False,
     elif which_type == 'rockbox':
         ymax = rockbox_ymax2
     elif which_type == 'ncpi0':
+        ymax = ncpi0_ymax2
+    elif which_type == 'ccnue':
         ymax = ncpi0_ymax2
     elif which_type == 'nu':
         ymax = nu_ymax2
