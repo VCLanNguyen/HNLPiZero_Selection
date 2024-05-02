@@ -111,25 +111,26 @@ xmax = 19
 xnbin = 19
 
 hnl_ymax = 4000
-hnl_ymax2 = 0.2
+hnl_ymax2 = 0.1
 
 rockbox_ymax = 40
-rockbox_ymax2 = 2.5
+rockbox_ymax2 = 2
 
 ncpi0_ymax = 600
-ncpi0_ymax2 = 2.5
+ncpi0_ymax2 = 1
 
 ccnue_ymax = 200
-ccnue_ymax2 = 2.5
+ccnue_ymax2 = 1
 
 nu_ymax = 3000
-nu_ymax2 = 2
+nu_ymax2 = 0.75
 
 cos_ymax = 4
 cos_ymax2 = 4
 
 #bins = np.arange(xmin, xmax+(xmax-xmin)/xnbin, (xmax-xmin)/xnbin)
 bins = [0, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 19]
+
 bins = np.array(bins)
 bins_mid = np.convolve(bins, [0.5, 0.5], "valid")
 
@@ -146,21 +147,28 @@ def new_empty_cov():
     
     return cov
 #------------------------------------------------------------------------------------------------------------------#
-def plot_hatchy_hatch(which_dict, label, which_type, error_type):
-    
+def plot_hatchy_hatch(which_dict, label, which_type, error_type, ytitle_scaled=False, scaleYmax = 1):
+   
+    ytitle = "Slices (No Scaling)"
+    if ytitle_scaled == True:
+        ytitle = r"Slices (1$\times10^{21}$ POT)"
+        
     ymin, ymax = 0,0
     #-----------------------------------------------------------------#
     if which_type == 'hnl':
-        ymax = hnl_ymax
+        ymax = hnl_ymax * scaleYmax
     elif which_type == 'rockbox':
-        ymax = rockbox_ymax
+        ymax = rockbox_ymax * scaleYmax
     elif which_type == 'ncpi0':
-        ymax = ncpi0_ymax
+        ymax = ncpi0_ymax * scaleYmax
     elif which_type == 'ccnue':
-        ymax = ccnue_ymax
+        ymax = ccnue_ymax * scaleYmax
     elif which_type == 'cos':
-        ymax = cos_ymax
-        
+        ymax = cos_ymax * scaleYmax
+    elif which_type == 'nu':
+        ymax = nu_ymax * scaleYmax
+    #-----------------------------------------------------------------#
+    
     if error_type == 'stat_err':
         error_label = 'Statistics'
         col = stats_col
@@ -208,7 +216,7 @@ def plot_hatchy_hatch(which_dict, label, which_type, error_type):
 
     ax1.legend(loc = 'upper left',fontsize = 14)
     plot_tick(ax1, 16)
-    plot_title(ax1, "", 'Opt0 Time Corrected Z % 18.936 [ns]',  "Slices (No Scaling)", 16)
+    plot_title(ax1, "", 'Opt0 Time Corrected Z % 18.936 [ns]',  ytitle, 16)
 
     ax1.set_xlim(xmin, xmax)
     ax1.set_ylim(ymin, ymax)
@@ -507,7 +515,7 @@ def scale_cov_matrix(which_dict, scale_factor, error_list):
     which_dict['combined_frac_err_scale'] = np.sqrt(np.diag(which_dict['combined_cov_frac_scale']))
     
 #------------------------------------------------------------------------------------------------------------------#  
-def plot_combine_err(which_dict, which_type, label, error_list, ifScale = False, scaleYmax = 1, suffix = ''):
+def plot_combine_err(which_dict, which_type, label, error_list, ifScale = False, scaleYmax = 1, suffix = '', ifStatOnly = False):
 
     fig, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 2]}, figsize = (6, 6), sharex = True)
 
@@ -538,10 +546,10 @@ def plot_combine_err(which_dict, which_type, label, error_list, ifScale = False,
     prefix = 'combined_err'
     col = total_col
     label = 'Total'
-    if which_type == 'cos':
+    if ifStatOnly == True:
         prefix = 'stat_err'
         col = stats_col
-        label = "Satistics"
+        label = "Statistics"
 
     bottom = which_dict['cv' + suffix] - which_dict[prefix + suffix]
     peak = which_dict['cv' + suffix] + which_dict[prefix + suffix]
@@ -603,7 +611,7 @@ def plot_combine_err(which_dict, which_type, label, error_list, ifScale = False,
         )
     #-----------------------------------------------------------------#
     #COMBINED
-    if which_type != 'cos':
+    if ifStatOnly == False:
 
         ax2.step(bins, np.insert(which_dict['combined_frac_err' + suffix], 0,0) 
          , color = total_col , linestyle = '--'

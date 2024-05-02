@@ -33,7 +33,7 @@ def plot_title(
                 ):
 
     #PLOT TITLE, AXIS LABEL
-    ax.set_title(title, fontsize = fontsize, loc='left')
+    ax.set_title(title, fontsize = fontsize, loc='center')
     ax.set_xlabel(xtitle, fontsize = fontsize)
     ax.set_ylabel(ytitle, fontsize = fontsize)
     #ax.get_yaxis().set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',')))
