@@ -110,20 +110,20 @@ xmin = 0
 xmax = 19
 xnbin = 19
 
-hnl_ymax = 4000
-hnl_ymax2 = 0.1
+hnl_ymax = 5000
+hnl_ymax2 = 0.2
 
 rockbox_ymax = 40
 rockbox_ymax2 = 2
 
 ncpi0_ymax = 600
-ncpi0_ymax2 = 1
+ncpi0_ymax2 = 1.5
 
 ccnue_ymax = 200
-ccnue_ymax2 = 1
+ccnue_ymax2 = 1.5
 
 nu_ymax = 3000
-nu_ymax2 = 0.75
+nu_ymax2 = 1.5
 
 cos_ymax = 4
 cos_ymax2 = 4
@@ -515,7 +515,7 @@ def scale_cov_matrix(which_dict, scale_factor, error_list):
     which_dict['combined_frac_err_scale'] = np.sqrt(np.diag(which_dict['combined_cov_frac_scale']))
     
 #------------------------------------------------------------------------------------------------------------------#  
-def plot_combine_err(which_dict, which_type, label, error_list, ifScale = False, scaleYmax = 1, suffix = '', ifStatOnly = False):
+def plot_combine_err(which_dict, which_type, label, error_list, ifScale = False, scaleYmax = 1, scaleY2max = 1, suffix = '', ifStatOnly = False):
 
     fig, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 2]}, figsize = (6, 6), sharex = True)
 
@@ -619,21 +619,20 @@ def plot_combine_err(which_dict, which_type, label, error_list, ifScale = False,
         )
     #-----------------------------------------------------------------#
     if which_type == 'hnl':
-        ymax = hnl_ymax2
+        ymax = hnl_ymax2 * scaleY2max
     elif which_type == 'rockbox':
         ymax = rockbox_ymax2
     elif which_type == 'ncpi0':
-        ymax = ncpi0_ymax2
+        ymax = ncpi0_ymax2 * scaleY2max
     elif which_type == 'ccnue':
-        ymax = ncpi0_ymax2
+        ymax = ncpi0_ymax2 * scaleY2max
     elif which_type == 'nu':
-        ymax = nu_ymax2
+        ymax = nu_ymax2 * scaleY2max
     elif which_type == 'cos':
-        ymax = cos_ymax2
+        ymax = cos_ymax2 * scaleY2max
     
     plot_tick(ax2, 16)
     plot_title(ax2,"", 'Opt0 Time Corrected Z % 18.936 [ns]', "Fractional Error", 16)
-
 
     ax2.set_xlim(xmin, xmax)
     ax2.set_ylim(ymin, ymax)
