@@ -826,7 +826,7 @@ def vary_PionScore(df_hnl, df_nu, df_cos, true_counts, start_counts):
 def vary_Theta(df_hnl, df_nu, df_cos, true_counts, start_counts):
     
     step = 0.2
-    cutStep = np.arange(6, 30 + step, step)
+    cutStep = np.arange(6, 50 + step, step)
     
     p_arr, eff_arr, peff_arr = [], [], []
     
@@ -935,12 +935,13 @@ def apply_shower_cut(df, dfshw1, dfshw2):
     return concat
 #------------------------------------------------------------------------------------------------------------------#   
 def split_my_df(df):
+    
     temp = df[['run', 'subrun', 'event', 'slc_id'
-                   , 'slc_pfp_shower_energy', 'slc_comp', 'scale_pot', 'slc_true_event_type'
+                   , 'slc_pfp_shower_energy', 'slc_comp', 'scale_pot', 'slc_true_event_type', 'mod_t'
                    ,'slc_opt0_frac' ,'slc_opt0_measPE'
                    , 'slc_pfp_shower_dir_x' , 'slc_pfp_shower_dir_y' , 'slc_pfp_shower_dir_z'
                    , 'slc_pfp_shower_theta', 'slc_pfp_shower_phi'
-                   , 'slc_pfp_shower_conv_gap', 'slc_pfp_shower_dedx'
+                   , 'slc_pfp_shower_conv_gap', 'slc_pfp_shower_dedx', 'slc_pfp_track_score'
                   ]]
     temp["pfp_idx"] = temp.groupby(['run', 'subrun', 'event', 'slc_id']).transform("cumcount").add(1) - 1
     temp = temp.set_index(['run', 'subrun', 'event', 'slc_id']).reset_index()
@@ -954,10 +955,14 @@ def split_my_df(df):
     temp7 = temp.groupby(['run', 'subrun', 'event', 'slc_id'])['slc_pfp_shower_phi'].apply(list).reset_index()
     temp8 = temp.groupby(['run', 'subrun', 'event', 'slc_id'])['slc_pfp_shower_conv_gap'].apply(list).reset_index()
     temp9 = temp.groupby(['run', 'subrun', 'event', 'slc_id'])['slc_pfp_shower_dedx'].apply(list).reset_index()
+    temp10 = temp.groupby(['run', 'subrun', 'event', 'slc_id'])['slc_pfp_track_score'].apply(list).reset_index()
     
-    concat = pd.concat([temp1, temp2, temp3, temp4, temp5, temp6, temp7, temp8, temp9], axis = 1)
+    concat = pd.concat([temp1, temp2, temp3, temp4, temp5, temp6, temp7, temp8, temp9, temp10], axis = 1)
     
     concat = concat.loc[:, ~concat.columns.duplicated()]
+    
+    if len(concat) == 0:
+        return df, df
     
     concat['n_pfp'] = concat.apply(lambda row: len(row['slc_pfp_shower_energy']), axis=1)
     
@@ -966,7 +971,7 @@ def split_my_df(df):
     shw1 = shw1.drop(columns = ['slc_pfp_shower_energy', 'pfp_idx'
                                 , 'slc_pfp_shower_dir_x', 'slc_pfp_shower_dir_y', 'slc_pfp_shower_dir_z'
                                 ,'slc_pfp_shower_theta' ,'slc_pfp_shower_phi', 'slc_pfp_shower_conv_gap'
-                                , 'slc_pfp_shower_dedx'
+                                , 'slc_pfp_shower_dedx', 'slc_pfp_track_score'
                                ])
     shw1 = shw1.merge(temp, how='inner', on=['run','subrun','event','slc_id'])
     
@@ -975,7 +980,7 @@ def split_my_df(df):
     temp = temp.drop(columns = ['slc_pfp_shower_energy', 'pfp_idx'
                                 , 'slc_pfp_shower_dir_x', 'slc_pfp_shower_dir_y', 'slc_pfp_shower_dir_z'
                                 ,'slc_pfp_shower_theta' ,'slc_pfp_shower_phi', 'slc_pfp_shower_conv_gap'
-                                , 'slc_pfp_shower_dedx'
+                                , 'slc_pfp_shower_dedx', 'slc_pfp_track_score'
                                ])
     temp = temp[~temp.duplicated(['run','subrun','event','slc_id'])]
     shw2more = shw2more.merge(temp, how='inner', on=['run','subrun','event','slc_id'])

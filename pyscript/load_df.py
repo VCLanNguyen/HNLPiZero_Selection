@@ -36,6 +36,7 @@ def load_tree(path, tname, branches):
 def load_df(input_file):
         
     #SLICE AND PFP NEED SPECIAL HANDLING
+    #print(slc_branches)
     dfslc = load_tree(input_file, "events", slc_branches)
     dfpfp = load_tree(input_file, "events", pfp_branches)
    

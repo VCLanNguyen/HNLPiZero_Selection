@@ -166,6 +166,8 @@ def calc_scaling_pot(df, dfslc, ifScale = 1):
     target_spill = target_pot * sample_spill / sample_pot
 
     dfslc['scale_pot'] = scale_pot
+    #dfslc['pot_per_spill'] = sample_pot / sample_spill
+    #dfslc['scale_pot_per_spill'] = dfslc['pot_per_spill'] * scale_pot
     
     print('-----------------------------------------------')
     print('sample pot = {:2f}'.format(sample_pot))
@@ -194,6 +196,7 @@ def calc_scaling_spill(df, dfslc, hnl_spill, nu_spill):
     print('-----------------------------------------------')
     print('target total spill = ' + str(target_spill))
     print('hnl + nu spill = ' + str(hnl_spill + nu_spill))
+    print('sample intime spill = ' +str(sample_spill))
     print('target intime spill = ' + str(target_intime_spill))
     print('scale pot factor = ' + str(scale_pot))
     print('-----------------------------------------------')
@@ -441,11 +444,16 @@ def plot_slc_var(dfhnl, dfnu, dfcosmics,
         #labels.insert(0, addLegend)
         #handles.insert(0, extra)
         num =  labels[0][labels[0].find("(")+1:labels[0].find(")")]
-        num_str = num.split(",")[0] + num.split(",")[1]
+        num_str = num
+        if num_str.find(',') != -1:
+            num_str = num_str.split(",")[0] + num_str.split(",")[1]
         num_float = float(num_str)
+        #print(num)
+        #print(num_str)
+        #print(num_float)
         labels[0] = addLegend + '\n ({:,})'.format(round(num_float))
 
-    ax.legend(handles, labels, loc=LegendLoc, fontsize=fontsize - 4, fancybox=False, ncol = 1)
+    ax.legend(handles, labels, loc=LegendLoc, fontsize=fontsize - 3, fancybox=False, ncol = 1)
 
     #ax.set_yscale('log')
 
